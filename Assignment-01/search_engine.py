@@ -5,7 +5,64 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 
-# lower after getting noun
+
+class NounExtractor:
+    def __init__(self):
+        # Extended sets for specific noun types
+        self.collective_nouns = {
+            "team", "family", "flock", "jury", "committee", "army", "crowd", "group",
+            "class", "band", "company", "panel", "crew", "squad", "community", "faculty"
+        }
+        self.material_nouns = {
+            "gold", "silver", "wood", "iron", "plastic", "steel", "water", "air",
+            "glass", "oil", "sand", "grain", "copper", "aluminum", "cotton", "wool"
+        }
+        self.abstract_nouns = {
+            "freedom", "love", "beauty", "intelligence", "honesty", "wisdom", "courage",
+            "justice", "happiness", "truth", "faith", "strength", "loyalty", "peace",
+            "compassion", "patience", "humility", "dignity", "friendship", "hope",
+            "creativity", "charity", "grace", "empathy", "kindness", "trust",
+            "ambition", "confidence", "passion", "resilience", "integrity", "curiosity",
+            "gratitude", "discipline", "honor", "imagination", "respect", "generosity",
+            "perseverance", "sincerity", "thoughtfulness", "unity", "wisdom"
+        }
+
+        self.possessive_suffix = "'s"
+        self.determiners = {"a", "an", "the"}
+
+    def extract_nouns(self, words):
+        # Initialize a set to store unique nouns
+        nouns = set()
+
+        # Simple POS tagging simulation
+        for i, word in enumerate(words):
+            word = word.strip(",.!?")
+
+            # Proper nouns: Start with a capital letter and are not the first word after a determiner
+            if word[0].isupper() and (i == 0 or words[i-1].lower() not in self.determiners):
+                nouns.add(word)
+
+            # Collective nouns
+            elif word.lower() in self.collective_nouns:
+                nouns.add(word)
+
+            # Material nouns
+            elif word.lower() in self.material_nouns:
+                nouns.add(word)
+
+            # Possessive nouns
+            elif word.endswith(self.possessive_suffix):
+                nouns.add(word)
+
+            # Compound nouns (simple heuristic: checks if the word has a hyphen)
+            elif "-" in word:
+                nouns.add(word)
+
+            # Abstract nouns (hard-coded example; extendable for specific concepts)
+            elif word.lower() in self.abstract_nouns:
+                nouns.add(word)
+
+        return nouns
 
 
 class HashTable:
@@ -126,8 +183,8 @@ class SearchEngine:
 
     def add_document(self, title, content):
 
-        preprocessed_title = self.preprocessing(title)
-        preprocessed_content = self.preprocessing(content)
+        preprocessed_title = self.preprocessing(title, is_query=False)
+        preprocessed_content = self.preprocessing(content, is_query=False)
 
         self.indexer_title.add_document(self.no_of_docs, preprocessed_title)
         self.indexer_content.add_document(
@@ -138,18 +195,22 @@ class SearchEngine:
 
         self.no_of_docs += 1
 
-    def preprocessing(self, text):
+    def preprocessing(self, text, is_query=False):
         """Process text: remove punctuation, convert to lowercase, and lemmatize words."""
         text = re.sub(r'[^a-zA-Z0-9\s]', '', text).strip()
 
         stop_words = set(stopwords.words('english'))
         word_tokens = word_tokenize(text)
 
+        if not is_query:
+            extractor = NounExtractor()
+            word_tokens = extractor.extract_nouns(word_tokens)
+
         return [word for word in word_tokens if word.lower() not in stop_words]
 
     def search_by_title(self, query):
         """Search by title using index."""
-        words = self.preprocessing(query)
+        words = self.preprocessing(query, is_query=True)
         results = self.indexer_title.search(words)
 
         format_string = ""
@@ -168,7 +229,7 @@ class SearchEngine:
 
     def search_by_content(self, query):
         """Search by title using index."""
-        words = self.preprocessing(query)
+        words = self.preprocessing(query, is_query=True)
         results = self.indexer_content.search(words)
 
         format_string = ""
@@ -187,7 +248,7 @@ class SearchEngine:
 
     def search_by_tf_idf(self, query):
         """Ranked search based on TF-IDF scores."""
-        words = self.preprocessing(query)
+        words = self.preprocessing(query, is_query=True)
 
         # Initialize a dictionary to store the TF-IDF scores for each document
         scores = {doc_id: 0 for doc_id in self.documents}
@@ -228,6 +289,8 @@ class SearchEngine:
         format_string = ""
         """Display ranked search results with TF-IDF scores."""
         for doc_id, score in ranked_results:
+            if score == 0:
+                continue
             doc = self.documents[doc_id]
 
             format_string += f"\nDocument ID {doc_id} (Score: {score:.4f}): {doc['title']}\n{doc['content']}\n\n"
@@ -251,6 +314,7 @@ def main():
     search_engine = load_documents(folder_path)
 
     while True:
+        os.system('cls')
         print("\n--- Document Search Engine ---")
         print("1. Search by Title")
         print("2. Search by Content")
@@ -284,8 +348,11 @@ def main():
         elif choice == '4':
             print("Exiting...")
             break
+
         else:
             print("Invalid choice. Please try again.")
+
+        input("\nPress Enter to continue...")
 
 
 if __name__ == "__main__":
