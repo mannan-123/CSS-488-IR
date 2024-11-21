@@ -1,0 +1,3 @@
+Machine learning is a subset of artificial intelligence that focuses on the development of algorithms that allow computers to learn from and make predictions based on data.
+The core idea is that systems can learn from historical data and identify patterns without being explicitly programmed.
+Common techniques include supervised learning, unsupervised learning, and reinforcement learning.
